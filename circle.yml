@@ -19,8 +19,8 @@ test:
     - ./wait-for-it.sh -t 30 localhost:9047
     - "[[ $(curl -o /dev/null --silent --head --write-out '%{http_code}' http://localhost:9047/) = 200 ]]"
   post:
-    - docker logs esdocker > $CIRCLE_TEST_REPORTS/Dockerlogs.log
-    - docker stop esdocker
+    - docker logs dremio > $CIRCLE_TEST_REPORTS/Dockerlogs.log
+    - docker stop dremio
 
 deployment:
   hub:
