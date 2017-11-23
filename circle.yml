@@ -1,0 +1,30 @@
+machine:
+  services:
+    - docker
+  environment:
+    PROJECT: polyglotted/${CIRCLE_PROJECT_REPONAME}
+    VERSION: ${CIRCLE_TAG:1}
+
+dependencies:
+  override:
+    - curl -o ./wait-for-it.sh "https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh" &&  chmod 755 ./wait-for-it.sh
+    - docker build -t ${PROJECT}:${VERSION} --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=${VERSION} .
+    - docker run -d --name dremio -p 9047:9047 ${PROJECT}:${VERSION}
+  post:
+    - docker inspect ${PROJECT}:${VERSION} > $CIRCLE_TEST_REPORTS/Dockerinfo.log
+    - docker images > $CIRCLE_TEST_REPORTS/Dockerimages.log
+
+test:
+  override:
+    - ./wait-for-it.sh -t 30 localhost:9047
+    - "[[ $(curl -o /dev/null --silent --head --write-out '%{http_code}' http://localhost:9047/) = 200 ]]"
+  post:
+    - docker logs esdocker > $CIRCLE_TEST_REPORTS/Dockerlogs.log
+    - docker stop esdocker
+
+deployment:
+  hub:
+    tag: /v[0-9]+(\.[0-9]+)*/
+    commands:
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push ${PROJECT}:${VERSION}
